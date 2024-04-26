@@ -17,15 +17,16 @@ if vars.SamplesInChunk > 0
         vars.SlowWaveDelay = .000;
         vars.Angles = zeros(1000000, 1);
         vars.X = zeros(3, 1000000);
-        vars.compLatency=zeros(1000000,1); %time from receiving chunk to playing sound
-        %initialize shim times; stimtimes are initialized in the llamas app
-        vars.shimCount= 1;
-        vars.shimcompLatency=zeros(100000,1); 
+        vars.complatency=zeros(1000000,1); %store times from receiving data chunk to actually playing sound
+        %initialize sham times (accidentally labeled 'shim' in variables),times when a 'sham sound' is played); stimtimes are initialized in the llamas app
+        vars.shimCount= 1; %keep count of sham sounds
+        vars.shimTimes= zeros(1000000,1); %for storing sham time data
+        vars.shimcompLatency=zeros(100000,1); %for storing latency of sham played
         %for keeping track of stim block
-        vars.ifblock=1; %always start with the stim on
+        vars.ifblock=1;
         %storing stim block data
-        vars.ifblocktracker=zeros(100000,1);
-        vars.ifblocktimes=zeros(100000,1);
+        vars.ifblocktracker=zeros(100000,1); %track when the block design was on (sounds allowed to play; value=1) vs off
+        vars.ifblocktimes=zeros(100000,1); %track times when block design is switched from on to off and vice versa
         vars.ifblocktracker(1)=1;
         vars.ifblocktimes(1)=1;
         vars.countblocks=2;
@@ -85,8 +86,8 @@ if vars.SamplesInChunk > 0
     end
     if ~vars.UseKalman
         if(vars.currentPosition - vars.SamplesInChunk)-1 <= 0
-            ref=mean(EEG.Recording((vars.currentPosition - vars.SamplesInChunk):vars.currentPosition - 1, 25:26),2);
-            sample =  EEG.Recording((vars.currentPosition - vars.SamplesInChunk):vars.currentPosition - 1, EEG.PrimaryChannel)-ref;
+            ref=mean(EEG.Recording((vars.currentPosition - vars.SamplesInChunk):vars.currentPosition - 1, 25:26),2); %find the mean of the mastoid data
+            sample =  EEG.Recording((vars.currentPosition - vars.SamplesInChunk):vars.currentPosition - 1, EEG.PrimaryChannel)-ref; %rereference eeg to mastoids
             sample = [0; sample];
         else
             ref=mean(EEG.Recording((vars.currentPosition - vars.SamplesInChunk)-1:vars.currentPosition - 1, 25:26),2);
@@ -120,7 +121,7 @@ if vars.SamplesInChunk > 0
     if (vars.currentPosition - vars.TriggerBuffer) > vars.LastStimPosition
         Mag = norm(Pred{1}(:, end));
         vars.allMags(end+1) = Mag;
-            if Mag > vars.confthreshold
+            if Mag > vars.confthreshold %check to see mags value meets the preset confidence threshold
                 if (PredAngle>=deg2rad(-60) && PredAngle<=deg2rad(-10))
                     idx = (vars.currentPosition-EEG.fs*30-1):(vars.currentPosition-1);
                     if idx(1) >= 1
@@ -128,16 +129,17 @@ if vars.SamplesInChunk > 0
                         delp = mean(envelope(filter(vars.b_delta, vars.a_delta, EEG.Recording(idx,9)), length(idx), 'rms'));
                         vars.alldelps(end+1) = delp;
                         disp('delp is ' + string(delp))                   
-                        if delp > vars.delpthresh
+                        if delp > vars.delpthresh %check that delp meets the threshold
                             % check for mov artifacts, print result
                             movs = mean(envelope(filter(vars.b_mov, vars.a_mov, EEG.Recording(idx,9)), length(idx), 'rms'));
                             vars.allmovs(end+1) = movs;
                             disp('movs is ' + string(movs))
-                            if movs < vars.movsthresh
-                                if vars.ifblock==1
-                                if rand(1) >= vars.shimpercent
+                            if movs < vars.movsthresh %check that the movs value is less than the threshold
+                                if vars.ifblock==1 %if block design, check that this is an 'on' block
+                                if rand(1) >= vars.shimpercent %play sound only a certain percentage of time
                                 PsychPortAudio('Start', vars.audio_port, vars.repetitions, vars.ChunkTime + vars.SlowWaveDelay, 0);
                                 %sound(Sound, fsSound)
+                                %store stim data
                                 vars.StimTimes(vars.StimCount) = round(vars.currentPosition + vars.SlowWaveDelay * EEG.fs);
                                 vars.complatency(vars.StimCount)= toc(vars.clock);
                                 vars.StimCount = vars.StimCount + 1;
@@ -146,6 +148,7 @@ if vars.SamplesInChunk > 0
                                 toc
                                 vars.LastStimPosition = vars.currentPosition;
                                 else
+                                %store sham data
                                 disp('Sham! No stim delivered')
                                 vars.shimTimes(vars.shimCount) = round(vars.currentPosition + vars.SlowWaveDelay * EEG.fs);
                                 vars.shimcomplatency(vars.shimCount)= toc(vars.clock);
@@ -160,17 +163,19 @@ if vars.SamplesInChunk > 0
                 end
             end
             end
-        if vars.stimblock ~= 0
-        if vars.currentPosition-vars.currentblocktime >= 0
+        if vars.stimblock ~=0 %check that a block design has been set
+        if vars.currentPosition-vars.currentblocktime >= 0 %check that the desired block design time has been reached
             if vars.ifblock==1
                 vars.ifblock = 0;
-                disp('stim turned off')
+                disp('stim turned off');
+                %store block design data
                 vars.ifblocktracker(vars.countblocks)=0;
                 vars.ifblocktimes(vars.countblocks)=vars.currentPosition;
                 vars.countblocks=vars.countblocks+1;
+                
             else
                 vars.ifblock = 1;
-                disp('stim turned on')
+                disp('stim turned on');
                 vars.ifblocktracker(vars.countblocks)=1;
                 vars.ifblocktimes(vars.countblocks)=vars.currentPosition;
                 vars.countblocks=vars.countblocks+1;

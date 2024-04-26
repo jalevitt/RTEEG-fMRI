@@ -1,5 +1,5 @@
 function [vars, Graph, EEG] = PlotDelpAndMovs(EEG, vars, Graph)
-   
+ %function to plot delp, movs, and mags value every 10 minutes when LLAMAS is running  
   if ~isfield(vars, 'LastPlotDM') 
     vars.LastPlotDM = 0;
     vars.SpecPeriod = 10*60*EEG.fs; %update every 10 minutes
