@@ -77,6 +77,7 @@ if vars.SamplesInChunk > 0
     end
     if ~vars.UseKalman
         if(vars.currentPosition - vars.SamplesInChunk)-1 <= 0
+        %rereference eeg data to the mastoids
             ref=mean(EEG.Recording((vars.currentPosition - vars.SamplesInChunk):vars.currentPosition - 1, 25:26),2);
             sample =  EEG.Recording((vars.currentPosition - vars.SamplesInChunk):vars.currentPosition - 1, EEG.PrimaryChannel)-ref;
             sample = [0; sample];
