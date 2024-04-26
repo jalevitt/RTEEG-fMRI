@@ -1,5 +1,5 @@
 function [vars, Graph, EEG]= PlotSpectrogram(EEG,vars,Graph)
-
+%plots a spectrogram every 10 minutes while LLAMAS is running
 if ~isfield(vars, 'LastPlotSpec') 
     vars.LastPlotSpec = 0;
     vars.SpecPeriod = 10*60*EEG.fs; %update every 10 minutes
@@ -20,7 +20,7 @@ movingwin=[5 .1]; % [windowlength windowslide]
 params.fpass=[0 20]; % frequency range 
     
 data = EEG.Recording';     
-[s,t,f]=mtspecgramc(data(9,:),movingwin,params);
+[s,t,f]=mtspecgramc(data(9,:),movingwin,params); %occipital channel
 power=log10(s)';
 figure()
 imagesc(t,f,power);
