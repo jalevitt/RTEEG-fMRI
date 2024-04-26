@@ -1,5 +1,6 @@
 function [vars, Graph, EEG] = AwakeSlowWavePhasePredict(EEG, vars, Graph)
-% Predicts Fpz phase re-referencing to mastoids and deliver sound
+% Predicts Fpz phase re-referencing to mastoids and deliver sound when subject is awake
+% Includes code for a block design for playing sounds if desired
 if vars.SamplesInChunk > 0 
     if ~isfield(vars, 'PhasePredictor')
         addpath('/home/lewislab/Desktop/EEG-LLAMAS-add_function/EEG-LLAMAS/PhasePredictors');
@@ -16,16 +17,16 @@ if vars.SamplesInChunk > 0
         vars.SlowWaveDelay = .000;
         vars.Angles = zeros(1000000, 1);
         vars.X = zeros(3, 1000000);
-        vars.complatency=zeros(1000000,1); %time from receiving chunk to playing sound
-        %initialize shim times; stimtimes are initialized in the llamas app
-        vars.shimCount= 1;
-        vars.shimTimes= zeros(1000000,1);
-        vars.shimcompLatency=zeros(100000,1);
+        vars.complatency=zeros(1000000,1); %store times from receiving data chunk to actually playing sound
+        %initialize sham times (accidentally labeled 'shim' in variables),times when a 'sham sound' is played); stimtimes are initialized in the llamas app
+        vars.shimCount= 1; %keep count of sham sounds
+        vars.shimTimes= zeros(1000000,1); %for storing sham time data
+        vars.shimcompLatency=zeros(100000,1); %for storing latency of sham played
         %for keeping track of stim block
         vars.ifblock=1;
         %storing stim block data
-        vars.ifblocktracker=zeros(100000,1);
-        vars.ifblocktimes=zeros(100000,1);
+        vars.ifblocktracker=zeros(100000,1); %track when the block design was on (sounds allowed to play; value=1) vs off
+        vars.ifblocktimes=zeros(100000,1); %track times when block design is switched from on to off and vice versa
         vars.ifblocktracker(1)=1;
         vars.ifblocktimes(1)=1;
         vars.countblocks=2;
@@ -90,8 +91,8 @@ if vars.SamplesInChunk > 0
     end
     if ~vars.UseKalman
         if(vars.currentPosition - vars.SamplesInChunk)-1 <= 0
-            ref=mean(EEG.Recording((vars.currentPosition - vars.SamplesInChunk):vars.currentPosition - 1, 25:26),2);
-            sample =  EEG.Recording((vars.currentPosition - vars.SamplesInChunk):vars.currentPosition - 1, EEG.PrimaryChannel)-ref;
+            ref=mean(EEG.Recording((vars.currentPosition - vars.SamplesInChunk):vars.currentPosition - 1, 25:26),2); %find the mean of mastoid data
+            sample =  EEG.Recording((vars.currentPosition - vars.SamplesInChunk):vars.currentPosition - 1, EEG.PrimaryChannel)-ref; % rereference eeg to mastoid
             sample = [0; sample];
         else
             ref=mean(EEG.Recording((vars.currentPosition - vars.SamplesInChunk)-1:vars.currentPosition - 1, 25:26),2);
@@ -130,11 +131,11 @@ if vars.SamplesInChunk > 0
                       
                       
                 if vars.ifblock==1
-                   if rand(1) >= vars.shimpercent
+                   if rand(1) >= vars.shimpercent %only play sound for a preset percentage of time
                       PsychPortAudio('Start', vars.audio_port, vars.repetitions, vars.ChunkTime + vars.SlowWaveDelay, 0);
                       %sound(Sound, fsSound)
-                      vars.StimTimes(vars.StimCount) = round(vars.currentPosition + vars.SlowWaveDelay * EEG.fs);
-                      vars.complatency(vars.StimCount)= toc(vars.clock);
+                      vars.StimTimes(vars.StimCount) = round(vars.currentPosition + vars.SlowWaveDelay * EEG.fs); %store the stim time
+                      vars.complatency(vars.StimCount)= toc(vars.clock); %store the time from chunk delivery to sound playing (the computational latency)
                       vars.StimCount = vars.StimCount + 1;
                       %display values
                       Mag = norm(Pred{1}(:, end));
@@ -154,6 +155,7 @@ if vars.SamplesInChunk > 0
                       vars.LastStimPosition = vars.currentPosition;
                     else
                       disp('Sham! No stim delivered');
+                      %store sham times and other sham information
                       vars.shimTimes(vars.shimCount) = round(vars.currentPosition + vars.SlowWaveDelay * EEG.fs);
                       vars.shimcomplatency(vars.shimCount)= toc(vars.clock);
                       vars.shimCount = vars.shimCount + 1;
@@ -163,11 +165,12 @@ if vars.SamplesInChunk > 0
                 end
             end
           
-        if vars.stimblock ~=0
-        if vars.currentPosition-vars.currentblocktime >= 0
+        if vars.stimblock ~=0 %check that a block design has been set
+        if vars.currentPosition-vars.currentblocktime >= 0 %check that the desired block design time has been reached
             if vars.ifblock==1
                 vars.ifblock = 0;
                 disp('stim turned off');
+                %store block design data
                 vars.ifblocktracker(vars.countblocks)=0;
                 vars.ifblocktimes(vars.countblocks)=vars.currentPosition;
                 vars.countblocks=vars.countblocks+1;
