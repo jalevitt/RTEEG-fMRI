@@ -5,6 +5,7 @@ open-source platform intended to enable neurofeedback experiments using
 EEG-fMRI by removing BCG and Gradient artifacts in real time. BCG 
 artifacts are removed using a unique Kalman filter based algorithm. 
 (https://www.biorxiv.org/content/10.1101/2022.11.21.515651v2)
+(https://pubmed.ncbi.nlm.nih.gov/37028736/)
 
 Can also be used to collect EEG neurofeedback outside of the scanner.
 
@@ -29,7 +30,6 @@ For detailed instructions on how to use EEG-LLAMAS, please see the wiki: https:/
 
 EEG-LLAMAS is dependent upon Labstreaminglayer and PsychToolbox.
 
-Under development by Joshua Levitt of the Lewis Neuro lab at Boston 
-University.
+Under development by Joshua Levitt of the Lewis Neuro lab at MIT.
 For more info, please communicate either via Github or by email at 
-JaLevitt@bu.edu
+JaLevitt@mit.edu
